@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masked Politics</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --card: #ffffff;
+    --ink: #1d1d1f;
+    --muted: #5f5f66;
+    --line: #dedbd4;
+    --accent: #2f4fd8;
+    --accent-ink: #ffffff;
+    --yes: #1f8a4c;
+    --neutral: #8a8a8f;
+    --no: #c23b3b;
+    --soft: #ecebf7;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151518; --card: #202025; --ink: #f1f1f3; --muted: #a5a5ad;
+      --line: #34343b; --accent: #7d93ff; --accent-ink: #0d0d10; --soft: #2a2b3a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151518; --card: #202025; --ink: #f1f1f3; --muted: #a5a5ad;
+    --line: #34343b; --accent: #7d93ff; --accent-ink: #0d0d10; --soft: #2a2b3a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5; font-size: 17px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; }
+  @media (max-width: 520px) { .card { padding: 20px 16px; } }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 1.4rem; line-height: 1.25; margin: 0 0 12px; }
+  .eyebrow { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); padding: 12px 18px; transition: transform .05s, background .15s, border-color .15s;
+  }
+  button:active { transform: scale(.98); }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .link { background: none; border: none; color: var(--muted); padding: 8px 4px; text-decoration: underline; }
+
+  /* Progress */
+  .progress { display: flex; gap: 4px; margin-bottom: 18px; }
+  .progress span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+  .progress span.done { background: var(--accent); opacity: .45; }
+  .progress span.now { background: var(--accent); }
+
+  .thesis { font-size: 1.35rem; line-height: 1.4; font-weight: 500; margin: 6px 0 24px; min-height: 3.8em; }
+  .answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 520px) { .answers { grid-template-columns: 1fr; } }
+  .answers button { padding: 16px 10px; font-weight: 600; }
+  .answers button[data-v="1"]:hover, .answers button[data-v="1"].sel { border-color: var(--yes); background: color-mix(in srgb, var(--yes) 14%, var(--card)); }
+  .answers button[data-v="0"]:hover, .answers button[data-v="0"].sel { border-color: var(--neutral); background: color-mix(in srgb, var(--neutral) 18%, var(--card)); }
+  .answers button[data-v="-1"]:hover, .answers button[data-v="-1"].sel { border-color: var(--no); background: color-mix(in srgb, var(--no) 14%, var(--card)); }
+  .qnav { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 8px; }
+
+  /* Weighting */
+  .wlist { list-style: none; padding: 0; margin: 0 0 20px; }
+  .wlist li { border-top: 1px solid var(--line); }
+  .wlist label { display: flex; gap: 12px; align-items: flex-start; padding: 12px 4px; cursor: pointer; }
+  .wlist input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .tag { display: inline-block; font-size: .75rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; margin-left: 6px; vertical-align: 1px; }
+  .tag.y { background: color-mix(in srgb, var(--yes) 18%, transparent); color: var(--yes); }
+  .tag.n { background: color-mix(in srgb, var(--no) 18%, transparent); color: var(--no); }
+  .tag.o { background: color-mix(in srgb, var(--neutral) 22%, transparent); color: var(--muted); }
+
+  /* Results */
+  .result { display: grid; grid-template-columns: 9.5rem 1fr 3.5rem; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  @media (max-width: 520px) { .result { grid-template-columns: 7rem 1fr 3.2rem; gap: 8px; } }
+  .pname { font-weight: 700; }
+  .pname small { display: block; font-weight: 500; color: var(--muted); font-size: .8rem; }
+  .bar { height: 14px; background: var(--line); border-radius: 7px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 7px; transition: width .8s ease, background .4s; }
+  .pct { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+  .reveal-box { margin-top: 24px; padding: 18px; border-radius: 12px; background: var(--soft); }
+  .reveal-box input { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 11rem; margin-right: 8px; }
+  .err { color: var(--no); font-size: .9rem; margin-top: 8px; }
+
+  .flip { animation: flip .6s ease; }
+  @keyframes flip { 0% { transform: rotateX(90deg); opacity: 0; } 100% { transform: rotateX(0); opacity: 1; } }
+
+  /* Comparison table */
+  details { margin-top: 24px; }
+  summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+  .tbl-wrap { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; }
+  th:first-child, td:first-child { text-align: left; }
+  td.sym { font-weight: 700; }
+  .sym.y { color: var(--yes); } .sym.n { color: var(--no); } .sym.o { color: var(--muted); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+  .note { font-size: .85rem; color: var(--muted); margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Start -->
+  <section id="s-start" class="card">
+    <div class="eyebrow">Mini-Wahl-O-Mat · Sachsen-Anhalt</div>
+    <h1>Masked Politics: Wer steckt hinter deiner Meinung?</h1>
+    <p>Du siehst gleich 15 politische Thesen. Entscheide bei jeder: <strong>Stimme zu</strong>, <strong>neutral</strong> oder <strong>stimme nicht zu</strong>. Wenn du dir unsicher bist, kannst du eine These überspringen.</p>
+    <p>Am Schluss vergleichen wir deine Antworten mit fünf Parteien. Die Parteien heissen zuerst nur <strong>Partei A bis E</strong>. Welche Partei sich dahinter versteckt, erfährst du erst ganz am Ende.</p>
+    <p class="muted">Es gibt keine richtigen oder falschen Antworten. Deine Antworten werden nirgends gespeichert.</p>
+    <div class="actions"><button class="primary" id="btn-start">Los geht's</button></div>
+  </section>
+
+  <!-- Thesen -->
+  <section id="s-quiz" class="card hidden" aria-live="polite">
+    <div class="progress" id="progress"></div>
+    <div class="eyebrow" id="q-count"></div>
+    <h2 id="q-title"></h2>
+    <p class="thesis" id="q-text"></p>
+    <div class="answers">
+      <button data-v="1">Stimme zu</button>
+      <button data-v="0">Neutral</button>
+      <button data-v="-1">Stimme nicht zu</button>
+    </div>
+    <div class="qnav">
+      <button class="link" id="btn-back">← Zurück</button>
+      <button class="link" id="btn-skip">These überspringen →</button>
+    </div>
+  </section>
+
+  <!-- Gewichtung -->
+  <section id="s-weight" class="card hidden">
+    <div class="eyebrow">Fast geschafft</div>
+    <h2>Welche Thesen sind dir besonders wichtig?</h2>
+    <p class="muted">Markierte Thesen zählen bei der Auswertung doppelt. Du kannst auch keine markieren.</p>
+    <ul class="wlist" id="wlist"></ul>
+    <div class="actions">
+      <button id="btn-wback">← Zurück zu den Thesen</button>
+      <button class="primary" id="btn-result">Ergebnis anzeigen</button>
+    </div>
+  </section>
+
+  <!-- Ergebnis -->
+  <section id="s-result" class="card hidden">
+    <div class="eyebrow">Dein Ergebnis</div>
+    <h2 id="r-head">So stark stimmst du mit den Parteien überein</h2>
+    <p class="muted" id="r-sub">Schau dir dein Ergebnis an, bevor du die Parteien aufdeckst. Was vermutest du: Welche Partei könnte A, B, C, D oder E sein?</p>
+    <div id="results"></div>
+
+    <div class="reveal-box" id="reveal-box">
+      <p style="margin-bottom:10px"><strong>Bereit für die Auflösung?</strong></p>
+      <div id="code-row" class="hidden">
+        <p class="muted" style="margin-bottom:8px">Deine Lehrperson gibt dir den Code für die Auflösung.</p>
+        <input id="code" type="text" autocomplete="off" placeholder="Code eingeben" aria-label="Code für die Auflösung">
+      </div>
+      <button class="primary" id="btn-reveal">Parteien aufdecken</button>
+      <div class="err hidden" id="code-err">Der Code stimmt nicht. Frag deine Lehrperson.</div>
+    </div>
+
+    <details>
+      <summary>Deine Antworten im Vergleich mit den Parteien</summary>
+      <div class="tbl-wrap"><table id="cmp"></table></div>
+    </details>
+
+    <div class="actions">
+      <button id="btn-edit">Antworten ändern</button>
+      <button class="link" id="btn-restart">Neu starten</button>
+    </div>
+    <p class="note">Die Positionen sind für den Unterricht vereinfacht. Ein Wahl-O-Mat ersetzt keine Wahlempfehlung.</p>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  // ---------- Konfiguration ----------
+  // Optional: Code, den die Lehrperson für die Auflösung bekannt gibt (z. B. "MASKE").
+  // Leer lassen ("") = Die SuS können direkt nach dem Durchführen aufdecken.
+  var REVEAL_CODE = "";
+
+  // ---------- Daten ----------
+  // Positionen: 1 = Zustimmung, 0 = neutral, -1 = Ablehnung
+  // Reihenfolge der Spalten: A, B, C, D, E
+  var THESES = [
+    ["Windenergieanlagen", "Der Bau neuer Windkraftanlagen im Wald soll in Sachsen-Anhalt verboten werden.", [1, 1, -1, -1, -1]],
+    ["Kostenfreies Mittagessen", "Das Mittagessen an Kitas und Schulen soll für alle Kinder kostenfrei sein.", [-1, -1, 1, 1, 1]],
+    ["Braunkohleausstieg", "Sachsen-Anhalt soll den Abbau und die Verstromung von Braunkohle schneller beenden als vom Bund geplant (vor 2038).", [-1, -1, 1, 1, 0]],
+    ["Schulstruktur", "Das mehrgliedrige Schulsystem (Sekundarschule, Gymnasium) soll zugunsten einer Gemeinschaftsschule für alle abgeschafft werden.", [-1, -1, 1, 1, 1]],
+    ["Öffentlicher Nahverkehr", "Die Nutzung des öffentlichen Nahverkehrs soll für alle Schülerinnen und Schüler in Sachsen-Anhalt kostenlos sein.", [0, -1, 1, 1, 1]],
+    ["Innere Sicherheit", "Die Polizei in Sachsen-Anhalt soll flächendeckend mit Bodycams (Körperkameras) ausgestattet werden.", [1, 1, -1, 0, 1]],
+    ["Rüstungsindustrie", "Das Land soll Ansiedlungen von Rüstungs- und Rüstungszulieferbetrieben finanziell fördern.", [1, 1, -1, -1, -1]],
+    ["Wolfspopulation", "Der Wolf soll ins Jagdrecht aufgenommen werden, damit sein Bestand in Sachsen-Anhalt stärker reguliert (geschossen) werden darf.", [1, 1, -1, -1, -1]],
+    ["Geschlechtergerechte Sprache", "Landesbehörden sollen in amtlichen Schreiben verbindlich geschlechtergerechte Sprache (z. B. Sternchen, Binnen-I) verwenden.", [-1, -1, 1, 1, 1]],
+    ["Ladenöffnungszeiten", "Die Einschränkungen für Sonntagsöffnungen von Geschäften sollen gelockert werden.", [1, 1, -1, -1, -1]],
+    ["Landwirtschaft", "Das Land soll finanzielle Anreize für landwirtschaftliche Betriebe setzen, um komplett auf ökologischen Landbau umzustellen.", [-1, 0, 1, 1, 1]],
+    ["Tempo 30", "Die Kommunen sollen leichter und eigenständig Tempo-30-Zonen innerorts anordnen dürfen.", [-1, -1, 1, 1, 1]],
+    ["Verfassungsschutz", "Der Verfassungsschutz (Inlandsgeheimdienst) in Sachsen-Anhalt soll abgeschafft werden.", [-1, -1, 1, -1, -1]],
+    ["Integration/Migration", "Abgelehnte Asylbewerber sollen konsequenter abgeschoben werden, auch wenn sie bereits gut integriert sind.", [1, 1, -1, -1, -1]],
+    ["Wahlalter", "Das aktive Wahlalter bei Landtagswahlen in Sachsen-Anhalt soll auf 16 Jahre gesenkt werden.", [-1, -1, 1, 1, 1]]
+  ];
+  var LETTERS = ["A", "B", "C", "D", "E"];
+  // Parteinamen leicht verschleiert, damit sie im Quelltext nicht sofort lesbar sind.
+  var HIDDEN = ["QWZE", "Q0RV", "RGllIExpbmtl", "QsO8bmRuaXMgOTAvRGllIEdyw7xuZW4=", "U1BE"];
+  var COLORS = ["#009ee0", "#6e6e73", "#be3075", "#46962b", "#e3000f"];
+
+  function decode(s) {
+    var bin = atob(s), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  // ---------- Zustand ----------
+  var answers = new Array(THESES.length).fill(null); // 1, 0, -1 oder "skip"
+  var weights = new Array(THESES.length).fill(false);
+  var current = 0;
+  var revealed = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var screens = ["s-start", "s-quiz", "s-weight", "s-result"];
+  function show(id) {
+    screens.forEach(function (s) { $(s).classList.toggle("hidden", s !== id); });
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- Thesen ----------
+  function renderQuestion() {
+    var t = THESES[current];
+    $("q-count").textContent = "These " + (current + 1) + " von " + THESES.length;
+    $("q-title").textContent = t[0];
+    $("q-text").textContent = t[1];
+    var p = $("progress");
+    p.innerHTML = "";
+    THESES.forEach(function (_, i) {
+      var s = document.createElement("span");
+      if (i < current) s.className = "done";
+      if (i === current) s.className = "now";
+      p.appendChild(s);
+    });
+    document.querySelectorAll(".answers button").forEach(function (b) {
+      b.classList.toggle("sel", answers[current] !== null && answers[current] !== "skip" && String(answers[current]) === b.dataset.v);
+    });
+    $("btn-back").style.visibility = current === 0 ? "hidden" : "visible";
+  }
+  function answer(v) {
+    answers[current] = v;
+    if (current < THESES.length - 1) { current++; renderQuestion(); }
+    else { renderWeights(); show("s-weight"); }
+  }
+
+  // ---------- Gewichtung ----------
+  function tagFor(v) {
+    if (v === 1) return '<span class="tag y">Zustimmung</span>';
+    if (v === 0) return '<span class="tag o">neutral</span>';
+    if (v === -1) return '<span class="tag n">Ablehnung</span>';
+    return '<span class="tag o">übersprungen</span>';
+  }
+  function renderWeights() {
+    var ul = $("wlist");
+    ul.innerHTML = "";
+    THESES.forEach(function (t, i) {
+      var li = document.createElement("li");
+      var skipped = answers[i] === "skip" || answers[i] === null;
+      li.innerHTML = '<label><input type="checkbox" data-i="' + i + '"' + (weights[i] ? " checked" : "") + (skipped ? " disabled" : "") +
+        '><span><strong>' + (i + 1) + '. ' + t[0] + '</strong>' + tagFor(answers[i]) + '<br><span class="muted">' + t[1] + '</span></span></label>';
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll("input").forEach(function (cb) {
+      cb.addEventListener("change", function () { weights[+cb.dataset.i] = cb.checked; });
+    });
+  }
+
+  // ---------- Auswertung (Punkte wie beim Wahl-O-Mat) ----------
+  // gleiche Position = 2 Punkte, eine Seite neutral = 1 Punkt, Gegenteil = 0 Punkte
+  function score() {
+    return LETTERS.map(function (_, p) {
+      var got = 0, max = 0;
+      THESES.forEach(function (t, i) {
+        var a = answers[i];
+        if (a === "skip" || a === null) return;
+        var w = weights[i] ? 2 : 1;
+        var diff = Math.abs(a - t[2][p]);
+        got += (diff === 0 ? 2 : diff === 1 ? 1 : 0) * w;
+        max += 2 * w;
+      });
+      return { p: p, pct: max ? Math.round(got / max * 100) : 0 };
+    }).sort(function (x, y) { return y.pct - x.pct; });
+  }
+  function partyLabel(p) {
+    if (!revealed) return "Partei " + LETTERS[p];
+    return decode(HIDDEN[p]) + "<small>war Partei " + LETTERS[p] + "</small>";
+  }
+  function renderResults() {
+    var answered = answers.filter(function (a) { return a !== "skip" && a !== null; }).length;
+    var box = $("results");
+    box.innerHTML = "";
+    if (!answered) {
+      box.innerHTML = '<p>Du hast alle Thesen übersprungen. Ohne Antworten kann nichts verglichen werden.</p>';
+      return;
+    }
+    score().forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "result" + (revealed ? " flip" : "");
+      row.innerHTML = '<div class="pname">' + partyLabel(r.p) + '</div><div class="bar"><i></i></div><div class="pct">' + r.pct + ' %</div>';
+      box.appendChild(row);
+      var bar = row.querySelector("i");
+      if (revealed) bar.style.background = COLORS[r.p];
+      requestAnimationFrame(function () { requestAnimationFrame(function () { bar.style.width = r.pct + "%"; }); });
+    });
+    renderTable();
+  }
+  function sym(v) {
+    if (v === 1) return '<td class="sym y" title="Zustimmung">✓</td>';
+    if (v === 0) return '<td class="sym o" title="neutral">○</td>';
+    if (v === -1) return '<td class="sym n" title="Ablehnung">✗</td>';
+    return '<td class="sym o" title="übersprungen">–</td>';
+  }
+  function renderTable() {
+    var head = '<tr><th>These</th><th>Du</th>' + LETTERS.map(function (l, p) {
+      return '<th>' + (revealed ? decode(HIDDEN[p]).replace("Bündnis 90/Die Grünen", "Grüne") : l) + '</th>';
+    }).join("") + '</tr>';
+    var rows = THESES.map(function (t, i) {
+      return '<tr><td>' + (i + 1) + '. ' + t[0] + (weights[i] ? ' <strong title="doppelt gewichtet">×2</strong>' : '') + '</td>' +
+        sym(answers[i]) + t[2].map(sym).join("") + '</tr>';
+    }).join("");
+    $("cmp").innerHTML = head + rows;
+  }
+
+  // ---------- Auflösung ----------
+  function reveal() {
+    if (REVEAL_CODE) {
+      var ok = $("code").value.trim().toUpperCase() === REVEAL_CODE.toUpperCase();
+      $("code-err").classList.toggle("hidden", ok);
+      if (!ok) return;
+    }
+    revealed = true;
+    $("reveal-box").classList.add("hidden");
+    $("r-head").textContent = "Die Auflösung: Das sind die Parteien";
+    $("r-sub").textContent = "Hat dich das Ergebnis überrascht? Vergleiche es mit deiner Vermutung von vorhin.";
+    renderResults();
+  }
+
+  // ---------- Ereignisse ----------
+  $("btn-start").addEventListener("click", function () { current = 0; renderQuestion(); show("s-quiz"); });
+  document.querySelectorAll(".answers button").forEach(function (b) {
+    b.addEventListener("click", function () { answer(+b.dataset.v); });
+  });
+  $("btn-skip").addEventListener("click", function () { answer("skip"); });
+  $("btn-back").addEventListener("click", function () { if (current > 0) { current--; renderQuestion(); } });
+  $("btn-wback").addEventListener("click", function () { current = THESES.length - 1; renderQuestion(); show("s-quiz"); });
+  $("btn-result").addEventListener("click", function () {
+    $("code-row").classList.toggle("hidden", !REVEAL_CODE);
+    renderResults(); show("s-result");
+  });
+  $("btn-reveal").addEventListener("click", reveal);
+  $("code").addEventListener("keydown", function (e) { if (e.key === "Enter") reveal(); });
+  $("btn-edit").addEventListener("click", function () { current = 0; renderQuestion(); show("s-quiz"); });
+  $("btn-restart").addEventListener("click", function () {
+    answers.fill(null); weights.fill(false); revealed = false; current = 0;
+    $("reveal-box").classList.remove("hidden");
+    $("r-head").textContent = "So stark stimmst du mit den Parteien überein";
+    $("r-sub").textContent = "Schau dir dein Ergebnis an, bevor du die Parteien aufdeckst. Was vermutest du: Welche Partei könnte A, B, C, D oder E sein?";
+    show("s-start");
+  });
+})();
+</script>
+</body>
+</html>
