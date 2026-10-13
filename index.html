@@ -105,6 +105,14 @@
   .reveal-box input { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 11rem; margin-right: 8px; }
   .err { color: var(--no); font-size: .9rem; margin-top: 8px; }
 
+  .saved-box { margin-top: 18px; padding: 16px 18px; border-radius: 12px; background: var(--soft); }
+  .saved-box p { margin: 0; }
+  .restore { margin-top: 22px; }
+  .restore input, .reveal-box input { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 13rem; max-width: 100%; margin: 0 8px 8px 0; text-transform: uppercase; letter-spacing: .05em; }
+  .codebox { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 24px; padding: 16px 18px; border: 2px dashed var(--accent); border-radius: 12px; }
+  .codebox .code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: .08em; }
+  .codebox p { flex-basis: 100%; margin: 0; font-size: .88rem; }
+
   .flip { animation: flip .6s ease; }
   @keyframes flip { 0% { transform: rotateX(90deg); opacity: 0; } 100% { transform: rotateX(0); opacity: 1; } }
 
@@ -131,8 +139,25 @@
     <p>Sachsen-Anhalt ist ein Bundesland im Osten Deutschlands (Hauptstadt Magdeburg). Ein Bundesland ist ungefähr wie ein Kanton. Am 6. September 2026 hat die Bevölkerung dort ihr Parlament, den Landtag, neu gewählt.</p>
     <p>Du siehst gleich 15 politische Thesen. Zu jeder These erklärt ein kurzer Text, worum es geht, und du kannst dir Argumente dafür und dagegen anzeigen lassen. Entscheide bei jeder: <strong>Stimme zu</strong>, <strong>neutral</strong> oder <strong>stimme nicht zu</strong>. Wenn du dir unsicher bist, kannst du eine These überspringen.</p>
     <p>Am Schluss vergleichen wir deine Antworten mit fünf Parteien. Die Parteien heissen zuerst nur <strong>Partei A bis E</strong>. Welche Partei sich dahinter versteckt, erfährst du erst ganz am Ende.</p>
-    <p class="muted">Es gibt keine richtigen oder falschen Antworten. Deine Antworten werden nirgends gespeichert.</p>
-    <div class="actions"><button class="primary" id="btn-start">Los geht's</button></div>
+    <p class="muted">Es gibt keine richtigen oder falschen Antworten. Deine Antworten bleiben nur auf diesem Gerät gespeichert, niemand sonst sieht sie.</p>
+
+    <div class="saved-box hidden" id="saved-box">
+      <p><strong>Willkommen zurück!</strong> <span id="saved-info"></span></p>
+      <div class="actions" style="margin-top:12px">
+        <button class="primary" id="btn-continue">Weiter</button>
+        <button id="btn-fresh">Neu beginnen</button>
+      </div>
+    </div>
+
+    <div class="actions" id="start-actions"><button class="primary" id="btn-start">Los geht's</button></div>
+
+    <details class="restore">
+      <summary>Ich habe einen Ergebnis-Code</summary>
+      <p class="muted" style="margin:8px 0">Gib den Code ein, den du dir notiert hast. Dann sind deine Antworten wieder da.</p>
+      <input id="restore-code" type="text" autocomplete="off" spellcheck="false" placeholder="z. B. 4K2-9QA-M0T-7" aria-label="Ergebnis-Code">
+      <button id="btn-restore">Laden</button>
+      <div class="err hidden" id="restore-err">Dieser Code stimmt nicht. Prüfe ihn bitte noch einmal.</div>
+    </details>
   </section>
 
   <!-- Thesen -->
@@ -187,6 +212,15 @@
       </div>
       <button class="primary" id="btn-reveal">Parteien aufdecken</button>
       <div class="err hidden" id="code-err">Der Code stimmt nicht. Frag deine Lehrperson.</div>
+    </div>
+
+    <div class="codebox">
+      <div>
+        <div class="eyebrow" style="margin:0">Dein Ergebnis-Code</div>
+        <div class="code" id="result-code"></div>
+      </div>
+      <button id="btn-copy">Kopieren</button>
+      <p class="muted">Dein Ergebnis wird auf diesem Gerät gespeichert. Schreib dir den Code trotzdem auf: Damit holst du dein Ergebnis auch auf einem anderen Gerät oder nach dem Löschen des Browsers zurück.</p>
     </div>
 
     <details>
@@ -323,6 +357,66 @@
   var current = 0;
   var revealed = false;
 
+  // ---------- Speichern ----------
+  // Pro These ein Wert 0–7: 0 offen, 1 übersprungen, 2/3/4 = Zustimmung/neutral/Ablehnung, +3 = doppelt gewichtet.
+  // Je 5 Thesen ergeben 15 Bit = 3 Zeichen, dazu ein Prüfzeichen (4 Bit Prüfsumme + 1 Bit «aufgedeckt»).
+  var STORE_KEY = "masked-politics-wahlomat-v1";
+  var ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  var ANS_TO_N = { "1": 2, "0": 3, "-1": 4 };
+  var N_TO_ANS = [null, "skip", 1, 0, -1];
+
+  function encodeState() {
+    var vals = answers.map(function (a, i) {
+      if (a === null) return 0;
+      if (a === "skip") return 1;
+      return ANS_TO_N[String(a)] + (weights[i] ? 3 : 0);
+    });
+    var out = "", sum = 0;
+    for (var g = 0; g < 3; g++) {
+      var n = 0;
+      for (var k = 0; k < 5; k++) n = n * 8 + vals[g * 5 + k];
+      out += ALPHABET[(n >> 10) & 31] + ALPHABET[(n >> 5) & 31] + ALPHABET[n & 31] + "-";
+    }
+    vals.forEach(function (v, i) { sum += v * (i + 1); });
+    return out + ALPHABET[((sum % 16) << 1) | (revealed ? 1 : 0)];
+  }
+  function decodeState(code) {
+    var s = String(code).toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
+    if (s.length !== 10) return null;
+    var nums = s.split("").map(function (c) { return ALPHABET.indexOf(c); });
+    if (nums.indexOf(-1) !== -1) return null;
+    var vals = [];
+    for (var g = 0; g < 3; g++) {
+      var n = (nums[g * 3] << 10) | (nums[g * 3 + 1] << 5) | nums[g * 3 + 2];
+      var group = [];
+      for (var k = 0; k < 5; k++) { group.unshift(n % 8); n = Math.floor(n / 8); }
+      vals = vals.concat(group);
+    }
+    var sum = 0;
+    vals.forEach(function (v, i) { sum += v * (i + 1); });
+    if ((nums[9] >> 1) !== sum % 16) return null;
+    return {
+      answers: vals.map(function (v) { return N_TO_ANS[v > 4 ? v - 3 : v]; }),
+      weights: vals.map(function (v) { return v > 4; }),
+      revealed: (nums[9] & 1) === 1
+    };
+  }
+  function applyState(st) {
+    for (var i = 0; i < THESES.length; i++) { answers[i] = st.answers[i]; weights[i] = st.weights[i]; }
+    revealed = st.revealed;
+  }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ code: encodeState(), savedAt: Date.now() })); } catch (e) {}
+  }
+  function loadSaved() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+      var st = raw && decodeState(raw.code);
+      return st ? { state: st, savedAt: raw.savedAt } : null;
+    } catch (e) { return null; }
+  }
+  function clearSaved() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} }
+
   var $ = function (id) { return document.getElementById(id); };
   var screens = ["s-start", "s-quiz", "s-weight", "s-result"];
   function show(id) {
@@ -358,6 +452,8 @@
   }
   function answer(v) {
     answers[current] = v;
+    if (v === "skip") weights[current] = false;
+    save();
     if (current < THESES.length - 1) { current++; renderQuestion(); }
     else { renderWeights(); show("s-weight"); }
   }
@@ -380,7 +476,7 @@
       ul.appendChild(li);
     });
     ul.querySelectorAll("input").forEach(function (cb) {
-      cb.addEventListener("change", function () { weights[+cb.dataset.i] = cb.checked; });
+      cb.addEventListener("change", function () { weights[+cb.dataset.i] = cb.checked; save(); });
     });
   }
 
@@ -448,10 +544,32 @@
       if (!ok) return;
     }
     revealed = true;
-    $("reveal-box").classList.add("hidden");
-    $("r-head").textContent = "Die Auflösung: Das sind die Parteien";
-    $("r-sub").textContent = "Hat dich das Ergebnis überrascht? Vergleiche es mit deiner Vermutung von vorhin.";
+    save();
+    showResults();
+  }
+  function showResults() {
+    $("code-row").classList.toggle("hidden", !REVEAL_CODE);
+    $("reveal-box").classList.toggle("hidden", revealed);
+    $("r-head").textContent = revealed ? "Die Auflösung: Das sind die Parteien" : "So stark stimmst du mit den Parteien überein";
+    $("r-sub").textContent = revealed
+      ? "Hat dich das Ergebnis überrascht? Vergleiche es mit deiner Vermutung von vorhin."
+      : "Schau dir dein Ergebnis an, bevor du die Parteien aufdeckst. Was vermutest du: Welche Partei könnte A, B, C, D oder E sein?";
+    $("result-code").textContent = encodeState();
+    $("btn-copy").textContent = "Kopieren";
     renderResults();
+    show("s-result");
+  }
+  // Nach dem Laden: zum Ergebnis, falls alles beantwortet ist, sonst zur ersten offenen These.
+  function resume() {
+    var open = answers.indexOf(null);
+    if (open === -1) showResults();
+    else { current = open; renderQuestion(); show("s-quiz"); }
+  }
+  function resetAll() {
+    answers.fill(null); weights.fill(false); revealed = false; current = 0;
+    clearSaved();
+    $("saved-box").classList.add("hidden");
+    $("start-actions").classList.remove("hidden");
   }
 
   // ---------- Ereignisse ----------
@@ -462,20 +580,49 @@
   $("btn-skip").addEventListener("click", function () { answer("skip"); });
   $("btn-back").addEventListener("click", function () { if (current > 0) { current--; renderQuestion(); } });
   $("btn-wback").addEventListener("click", function () { current = THESES.length - 1; renderQuestion(); show("s-quiz"); });
-  $("btn-result").addEventListener("click", function () {
-    $("code-row").classList.toggle("hidden", !REVEAL_CODE);
-    renderResults(); show("s-result");
-  });
+  $("btn-result").addEventListener("click", showResults);
   $("btn-reveal").addEventListener("click", reveal);
   $("code").addEventListener("keydown", function (e) { if (e.key === "Enter") reveal(); });
   $("btn-edit").addEventListener("click", function () { current = 0; renderQuestion(); show("s-quiz"); });
   $("btn-restart").addEventListener("click", function () {
-    answers.fill(null); weights.fill(false); revealed = false; current = 0;
-    $("reveal-box").classList.remove("hidden");
-    $("r-head").textContent = "So stark stimmst du mit den Parteien überein";
-    $("r-sub").textContent = "Schau dir dein Ergebnis an, bevor du die Parteien aufdeckst. Was vermutest du: Welche Partei könnte A, B, C, D oder E sein?";
+    if (!confirm("Dein gespeichertes Ergebnis wird gelöscht. Hast du dir deinen Ergebnis-Code notiert?")) return;
+    resetAll();
     show("s-start");
   });
+  $("btn-continue").addEventListener("click", resume);
+  $("btn-fresh").addEventListener("click", function () {
+    if (!confirm("Dein gespeichertes Ergebnis wird gelöscht. Wirklich neu beginnen?")) return;
+    resetAll();
+  });
+  function restore() {
+    var st = decodeState($("restore-code").value);
+    $("restore-err").classList.toggle("hidden", !!st);
+    if (!st) return;
+    applyState(st);
+    save();
+    $("restore-code").value = "";
+    resume();
+  }
+  $("btn-restore").addEventListener("click", restore);
+  $("restore-code").addEventListener("keydown", function (e) { if (e.key === "Enter") restore(); });
+  $("btn-copy").addEventListener("click", function () {
+    var code = encodeState();
+    try {
+      navigator.clipboard.writeText(code).then(function () { $("btn-copy").textContent = "Kopiert ✓"; }, function () {});
+    } catch (e) {}
+  });
+
+  // Gespeichertes Ergebnis beim Öffnen anbieten
+  var saved = loadSaved();
+  if (saved && saved.state.answers.some(function (a) { return a !== null; })) {
+    applyState(saved.state);
+    var done = answers.indexOf(null) === -1;
+    var when = saved.savedAt ? new Date(saved.savedAt).toLocaleDateString("de-CH", { day: "numeric", month: "long" }) : "";
+    $("saved-info").textContent = (done ? "Dein Ergebnis" : "Deine angefangenen Antworten") + (when ? " vom " + when : "") + (done ? " ist" : " sind") + " auf diesem Gerät gespeichert.";
+    $("btn-continue").textContent = done ? "Zu meinem Ergebnis" : "Weitermachen";
+    $("saved-box").classList.remove("hidden");
+    $("start-actions").classList.add("hidden");
+  }
 })();
 </script>
 </body>
