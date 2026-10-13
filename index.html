@@ -61,7 +61,19 @@
   .progress span.done { background: var(--accent); opacity: .45; }
   .progress span.now { background: var(--accent); }
 
-  .thesis { font-size: 1.35rem; line-height: 1.4; font-weight: 500; margin: 6px 0 24px; min-height: 3.8em; }
+  .thesis { font-size: 1.3rem; line-height: 1.4; font-weight: 500; margin: 6px 0 18px; }
+  .context { background: var(--soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: .95rem; }
+  .context strong { display: block; margin-bottom: 4px; }
+  .args { margin: 0 0 22px; }
+  .args summary { font-size: .95rem; }
+  .args-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; font-size: .92rem; }
+  @media (max-width: 520px) { .args-grid { grid-template-columns: 1fr; } }
+  .args-grid div { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .args-grid h3 { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 6px; }
+  .args-grid .pro h3 { color: var(--yes); }
+  .args-grid .con h3 { color: var(--no); }
+  .args-grid ul { margin: 0; padding-left: 18px; }
+  .args-grid li { margin-bottom: 4px; }
   .answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   @media (max-width: 520px) { .answers { grid-template-columns: 1fr; } }
   .answers button { padding: 16px 10px; font-weight: 600; }
@@ -114,9 +126,10 @@
 
   <!-- Start -->
   <section id="s-start" class="card">
-    <div class="eyebrow">Mini-Wahl-O-Mat · Sachsen-Anhalt</div>
+    <div class="eyebrow">Mini-Wahl-O-Mat · Landtagswahl Sachsen-Anhalt 2026</div>
     <h1>Masked Politics: Wer steckt hinter deiner Meinung?</h1>
-    <p>Du siehst gleich 15 politische Thesen. Entscheide bei jeder: <strong>Stimme zu</strong>, <strong>neutral</strong> oder <strong>stimme nicht zu</strong>. Wenn du dir unsicher bist, kannst du eine These überspringen.</p>
+    <p>Sachsen-Anhalt ist ein Bundesland im Osten Deutschlands (Hauptstadt Magdeburg). Ein Bundesland ist ungefähr wie ein Kanton. Am 6. September 2026 hat die Bevölkerung dort ihr Parlament, den Landtag, neu gewählt.</p>
+    <p>Du siehst gleich 15 politische Thesen. Zu jeder These erklärt ein kurzer Text, worum es geht, und du kannst dir Argumente dafür und dagegen anzeigen lassen. Entscheide bei jeder: <strong>Stimme zu</strong>, <strong>neutral</strong> oder <strong>stimme nicht zu</strong>. Wenn du dir unsicher bist, kannst du eine These überspringen.</p>
     <p>Am Schluss vergleichen wir deine Antworten mit fünf Parteien. Die Parteien heissen zuerst nur <strong>Partei A bis E</strong>. Welche Partei sich dahinter versteckt, erfährst du erst ganz am Ende.</p>
     <p class="muted">Es gibt keine richtigen oder falschen Antworten. Deine Antworten werden nirgends gespeichert.</p>
     <div class="actions"><button class="primary" id="btn-start">Los geht's</button></div>
@@ -128,6 +141,14 @@
     <div class="eyebrow" id="q-count"></div>
     <h2 id="q-title"></h2>
     <p class="thesis" id="q-text"></p>
+    <div class="context"><strong>Worum geht es?</strong><span id="q-context"></span></div>
+    <details class="args" id="q-args">
+      <summary>Argumente anzeigen</summary>
+      <div class="args-grid">
+        <div class="pro"><h3>Argumente für die These</h3><ul id="q-pro"></ul></div>
+        <div class="con"><h3>Argumente gegen die These</h3><ul id="q-con"></ul></div>
+      </div>
+    </details>
     <div class="answers">
       <button data-v="1">Stimme zu</button>
       <button data-v="0">Neutral</button>
@@ -192,22 +213,98 @@
   // ---------- Daten ----------
   // Positionen: 1 = Zustimmung, 0 = neutral, -1 = Ablehnung
   // Reihenfolge der Spalten: A, B, C, D, E
+  // Felder: [Titel, These, Positionen A–E, Worum geht es?, Argumente dafür, Argumente dagegen]
   var THESES = [
-    ["Windenergieanlagen", "Der Bau neuer Windkraftanlagen im Wald soll in Sachsen-Anhalt verboten werden.", [1, 1, -1, -1, -1]],
-    ["Kostenfreies Mittagessen", "Das Mittagessen an Kitas und Schulen soll für alle Kinder kostenfrei sein.", [-1, -1, 1, 1, 1]],
-    ["Braunkohleausstieg", "Sachsen-Anhalt soll den Abbau und die Verstromung von Braunkohle schneller beenden als vom Bund geplant (vor 2038).", [-1, -1, 1, 1, 0]],
-    ["Schulstruktur", "Das mehrgliedrige Schulsystem (Sekundarschule, Gymnasium) soll zugunsten einer Gemeinschaftsschule für alle abgeschafft werden.", [-1, -1, 1, 1, 1]],
-    ["Öffentlicher Nahverkehr", "Die Nutzung des öffentlichen Nahverkehrs soll für alle Schülerinnen und Schüler in Sachsen-Anhalt kostenlos sein.", [0, -1, 1, 1, 1]],
-    ["Innere Sicherheit", "Die Polizei in Sachsen-Anhalt soll flächendeckend mit Bodycams (Körperkameras) ausgestattet werden.", [1, 1, -1, 0, 1]],
-    ["Rüstungsindustrie", "Das Land soll Ansiedlungen von Rüstungs- und Rüstungszulieferbetrieben finanziell fördern.", [1, 1, -1, -1, -1]],
-    ["Wolfspopulation", "Der Wolf soll ins Jagdrecht aufgenommen werden, damit sein Bestand in Sachsen-Anhalt stärker reguliert (geschossen) werden darf.", [1, 1, -1, -1, -1]],
-    ["Geschlechtergerechte Sprache", "Landesbehörden sollen in amtlichen Schreiben verbindlich geschlechtergerechte Sprache (z. B. Sternchen, Binnen-I) verwenden.", [-1, -1, 1, 1, 1]],
-    ["Ladenöffnungszeiten", "Die Einschränkungen für Sonntagsöffnungen von Geschäften sollen gelockert werden.", [1, 1, -1, -1, -1]],
-    ["Landwirtschaft", "Das Land soll finanzielle Anreize für landwirtschaftliche Betriebe setzen, um komplett auf ökologischen Landbau umzustellen.", [-1, 0, 1, 1, 1]],
-    ["Tempo 30", "Die Kommunen sollen leichter und eigenständig Tempo-30-Zonen innerorts anordnen dürfen.", [-1, -1, 1, 1, 1]],
-    ["Verfassungsschutz", "Der Verfassungsschutz (Inlandsgeheimdienst) in Sachsen-Anhalt soll abgeschafft werden.", [-1, -1, 1, -1, -1]],
-    ["Integration/Migration", "Abgelehnte Asylbewerber sollen konsequenter abgeschoben werden, auch wenn sie bereits gut integriert sind.", [1, 1, -1, -1, -1]],
-    ["Wahlalter", "Das aktive Wahlalter bei Landtagswahlen in Sachsen-Anhalt soll auf 16 Jahre gesenkt werden.", [-1, -1, 1, 1, 1]]
+    ["Windkraft im Wald",
+     "In Sachsen-Anhalt sollen keine neuen Windräder in Wäldern gebaut werden dürfen.",
+     [1, 1, -1, -1, -1],
+     "Windräder erzeugen Strom aus Wind, ohne dabei CO₂ auszustossen. Deutschland will in den nächsten Jahren viel mehr Windräder bauen. Weil auf freien Feldern oft Platz fehlt oder Anwohnende dagegen sind, sucht man auch Flächen im Wald – zum Beispiel dort, wo Bäume wegen Trockenheit und Borkenkäfer schon abgestorben sind.",
+     ["Der Wald ist Lebensraum für viele Tiere und ein Ort zur Erholung.", "Für den Bau müssen Bäume gefällt und breite Zufahrtswege angelegt werden.", "Windräder verändern das Landschaftsbild stark."],
+     ["Mehr Flächen bedeuten mehr klimafreundlichen Strom.", "Im Wald stehen Windräder oft weiter weg von Häusern – weniger Lärm für Menschen.", "Bereits kaputte Waldflächen können sinnvoll genutzt werden."]],
+    ["Kostenloses Mittagessen",
+     "Alle Kinder in Kitas (Krippe und Kindergarten) und in Schulen sollen jeden Tag ein kostenloses Mittagessen bekommen. Das Land bezahlt die Kosten.",
+     [-1, -1, 1, 1, 1],
+     "In Deutschland essen viele Kinder in der Kita oder in der Schulmensa zu Mittag. Heute bezahlen das meistens die Eltern, oft einige Euro pro Mahlzeit. Familien mit wenig Geld bekommen teilweise Unterstützung.",
+     ["Alle Kinder bekommen eine warme, gesunde Mahlzeit – egal, wie viel Geld die Eltern haben.", "Familien werden finanziell entlastet.", "Niemand wird ausgegrenzt, weil er sich das Essen nicht leisten kann."],
+     ["Das kostet das Land sehr viel Geld, das an anderen Orten fehlt (z. B. für Lehrpersonen).", "Auch reiche Familien profitieren, obwohl sie selbst zahlen könnten.", "Die Eltern sollen selbst Verantwortung für das Essen ihrer Kinder tragen."]],
+    ["Früherer Braunkohleausstieg",
+     "Sachsen-Anhalt soll früher als 2038 damit aufhören, Braunkohle abzubauen und in Kraftwerken daraus Strom zu machen.",
+     [-1, -1, 1, 1, 0],
+     "Braunkohle wird in riesigen Gruben (Tagebau) aus dem Boden gebaggert und in Kraftwerken verbrannt. Das erzeugt Strom, aber auch sehr viel CO₂, das den Klimawandel antreibt. Deutschland hat beschlossen, spätestens 2038 ganz auszusteigen. In der Region arbeiten noch viele Menschen in der Kohle oder in Firmen, die davon abhängen.",
+     ["Das Klima wird schneller geschützt.", "Es werden weniger Landschaften und Dörfer für Tagebaue zerstört.", "Der Umstieg auf erneuerbare Energien (Wind, Sonne) wird beschleunigt."],
+     ["Arbeitsplätze in der Region gehen früher verloren.", "Strom könnte teurer oder knapper werden.", "Die Region braucht Zeit, um neue Jobs und Firmen anzusiedeln."]],
+    ["Eine Schule für alle",
+     "Alle Kinder sollen nach der Grundschule (4. Klasse) gemeinsam in eine Gemeinschaftsschule gehen. Die Aufteilung in Sekundarschule und Gymnasium wird abgeschafft.",
+     [-1, -1, 1, 1, 1],
+     "In Sachsen-Anhalt werden die Kinder schon nach der 4. Klasse auf verschiedene Schulen verteilt: meistens Sekundarschule oder Gymnasium. Das ist ähnlich wie bei uns die Einteilung in Niveau A, B, C oder ins Gymnasium – nur viel früher. In einer Gemeinschaftsschule lernen alle zusammen und werden je nach Fach unterschiedlich gefördert. Einige solche Schulen gibt es schon.",
+     ["Mehr Chancengleichheit: Der Schulerfolg hängt weniger vom Elternhaus ab.", "Mit 10 Jahren über den Schulweg zu entscheiden, ist sehr früh.", "Schwächere und stärkere Kinder können voneinander lernen."],
+     ["Starke Schülerinnen und Schüler werden vielleicht zu wenig gefordert, schwächere überfordert.", "Das Gymnasium hat sich bewährt.", "Eine so grosse Umstellung kostet viel Geld und bringt Unruhe in die Schulen."]],
+    ["Gratis Bus und Bahn für Schülerinnen und Schüler",
+     "Alle Schülerinnen und Schüler in Sachsen-Anhalt sollen Bus, Tram und Zug kostenlos benutzen dürfen – nicht nur für den Schulweg, sondern auch in der Freizeit.",
+     [0, -1, 1, 1, 1],
+     "ÖPNV heisst «öffentlicher Personennahverkehr» – bei uns sagt man einfach ÖV. Heute wird für Schülerinnen und Schüler meistens nur die Fahrt zur Schule bezahlt. Wer in der Freizeit fährt, zum Beispiel ins Training oder zu Freunden, braucht ein eigenes Ticket.",
+     ["Jugendliche werden unabhängiger und mobiler, besonders auf dem Land.", "Familien sparen Geld.", "Gut für die Umwelt: weniger «Elterntaxi» mit dem Auto."],
+     ["Das kostet viel Steuergeld.", "Auf dem Land fahren Busse selten – gratis nützt dort wenig.", "Das Geld wäre besser in mehr und häufigere Verbindungen investiert."]],
+    ["Bodycams für die Polizei",
+     "Alle Polizistinnen und Polizisten in Sachsen-Anhalt, die auf Streife sind, sollen eine kleine Kamera an der Uniform tragen (Bodycam), mit der sie Einsätze filmen können.",
+     [1, 1, -1, 0, 1],
+     "Eine Bodycam ist eine kleine Videokamera, die an der Uniform befestigt ist. Die Polizei schaltet sie ein, wenn eine Situation gefährlich oder unklar wird. Ein Teil der Polizei nutzt Bodycams schon – die These verlangt, dass alle Streifenpolizistinnen und -polizisten eine bekommen.",
+     ["Schützt die Polizei: Wer gefilmt wird, greift seltener an.", "Bei Streit gibt es Beweise, z. B. vor Gericht.", "Auch Fehlverhalten der Polizei wird sichtbar."],
+     ["Gefilmte Personen verlieren ein Stück Privatsphäre.", "Kameras und das Speichern der Videos sind teuer.", "Die Polizei entscheidet selbst, wann sie filmt – das kann einseitig sein."]],
+    ["Förderung der Rüstungsindustrie",
+     "Das Land Sachsen-Anhalt soll Firmen, die Waffen, Munition oder Teile für Militärfahrzeuge herstellen, mit Geld unterstützen, damit sie hier Fabriken bauen.",
+     [1, 1, -1, -1, -1],
+     "Seit dem Krieg in der Ukraine will Deutschland seine Armee (die Bundeswehr) stärken und braucht dafür mehr Waffen und Munition. Bundesländer können Firmen Fördergeld geben, damit diese neue Fabriken bei ihnen bauen und nicht in einem anderen Bundesland.",
+     ["Es entstehen gut bezahlte Arbeitsplätze.", "Deutschland und Europa können sich besser verteidigen.", "Das Land bekommt mehr Steuereinnahmen."],
+     ["Steuergeld fliesst in Waffen statt in Schulen oder Spitäler.", "Waffen könnten in Kriegsgebiete verkauft werden.", "Ethische Bedenken: Mit Waffen Geld zu verdienen, ist umstritten."]],
+    ["Wolf ins Jagdrecht",
+     "Der Wolf soll ins Jagdrecht aufgenommen werden. Jägerinnen und Jäger dürften Wölfe dann nach festen Regeln schiessen, damit es weniger Wölfe gibt.",
+     [1, 1, -1, -1, -1],
+     "Der Wolf war in Deutschland ausgerottet und ist vor rund 25 Jahren zurückgekehrt. Er ist geschützt und darf nur in Ausnahmefällen getötet werden. In Sachsen-Anhalt leben inzwischen viele Wolfsrudel. Wölfe reissen manchmal Schafe oder Ziegen – ähnlich wie bei uns im Wallis oder in Graubünden.",
+     ["Schafe, Ziegen und andere Weidetiere werden besser geschützt.", "Die Zahl der Wölfe wächst stark.", "Manche Menschen auf dem Land haben Angst vor dem Wolf."],
+     ["Der Wolf gehört zur Natur und hält z. B. den Bestand von Rehen und Wildschweinen gesund.", "Herdenschutz mit Zäunen und Hunden wirkt oft besser als Abschüsse.", "Der Wolf ist geschützt – Abschüsse könnten seinen Bestand gefährden."]],
+    ["Geschlechtergerechte Sprache in Behörden",
+     "Ämter des Landes sollen in Briefen und Formularen immer geschlechtergerechte Sprache verwenden müssen, z. B. «Bürger*innen» oder «BürgerInnen» statt nur «Bürger».",
+     [-1, -1, 1, 1, 1],
+     "Früher wurde oft nur die männliche Form verwendet («die Lehrer»), auch wenn Frauen mitgemeint waren. Geschlechtergerechte Sprache soll alle Geschlechter sichtbar machen. Manche finden Sternchen und Binnen-I wichtig, andere finden sie kompliziert oder unnötig.",
+     ["Alle Menschen fühlen sich angesprochen – Frauen und auch nicht-binäre Personen.", "Sprache beeinflusst, wie wir denken.", "Der Staat soll ein Vorbild sein."],
+     ["Texte werden schwerer lesbar, z. B. für Menschen mit Leseschwierigkeiten.", "Eine Pflicht «von oben» stört viele Menschen.", "Es gibt einfachere Lösungen, z. B. «Lehrerinnen und Lehrer» oder «Lehrpersonen»."]],
+    ["Mehr Sonntagsverkauf",
+     "Geschäfte in Sachsen-Anhalt sollen an mehr Sonntagen im Jahr öffnen dürfen als heute.",
+     [1, 1, -1, -1, -1],
+     "In Deutschland sind Läden – wie in der Schweiz – am Sonntag grundsätzlich geschlossen. Ausnahmen gibt es nur an wenigen «verkaufsoffenen Sonntagen» pro Jahr. Der Sonntag gilt als Ruhetag für Familie, Erholung und Religion.",
+     ["Mehr Freiheit: Man kann einkaufen, wann man Zeit hat.", "Läden in der Stadt können besser mit Online-Shops mithalten.", "Innenstädte werden belebter."],
+     ["Verkäuferinnen und Verkäufer müssen am Sonntag arbeiten.", "Der Sonntag als gemeinsamer Ruhetag für Familien geht verloren.", "Kleine Läden können sich zusätzliches Personal oft nicht leisten."]],
+    ["Förderung von Bio-Landwirtschaft",
+     "Das Land soll Bauernhöfen zusätzliches Geld geben, wenn sie ihren Betrieb ganz auf Bio-Landwirtschaft (ökologischen Landbau) umstellen.",
+     [-1, 0, 1, 1, 1],
+     "Bio-Höfe verzichten auf Kunstdünger und chemische Pflanzenschutzmittel (Pestizide), und die Tiere haben mehr Platz. Das ist besser für Boden, Wasser und Insekten. Dafür ist die Ernte kleiner und die Produkte sind teurer. Die Umstellung dauert mehrere Jahre und kostet die Bauern Geld.",
+     ["Umwelt, Insekten und Grundwasser werden geschützt.", "Die Tiere werden besser gehalten.", "Bauern erhalten Sicherheit während der teuren Umstellung."],
+     ["Bio-Produkte sind teurer – nicht alle können sie sich leisten.", "Weniger Ernte: Es braucht mehr Fläche oder mehr Importe.", "Der Staat soll den Bauern nicht vorschreiben, wie sie arbeiten."]],
+    ["Einfacher Tempo 30",
+     "Städte und Gemeinden sollen selbst und ohne grosse Hürden entscheiden dürfen, auf welchen Strassen im Ort Tempo 30 gilt.",
+     [-1, -1, 1, 1, 1],
+     "Innerorts gilt in Deutschland normalerweise Tempo 50. Tempo 30 ist nur an bestimmten Orten erlaubt, zum Beispiel vor Schulen, und muss gut begründet werden. Viele Gemeinden möchten selbst entscheiden, wo langsamer gefahren wird.",
+     ["Weniger Unfälle und weniger schwere Verletzungen.", "Weniger Lärm und Abgase.", "Die Gemeinden kennen ihre Strassen am besten."],
+     ["Autofahrerinnen und Autofahrer brauchen länger.", "Unterschiedliche Regeln von Ort zu Ort verwirren.", "Busse und Lieferwagen werden langsamer."]],
+    ["Abschaffung des Verfassungsschutzes",
+     "Der Verfassungsschutz in Sachsen-Anhalt soll abgeschafft werden.",
+     [-1, -1, 1, -1, -1],
+     "Der Verfassungsschutz ist ein Geheimdienst im eigenen Land. Er beobachtet Gruppen und Personen, die die Demokratie bekämpfen wollen – zum Beispiel Rechtsextreme, Linksextreme oder Islamisten – und warnt Politik und Öffentlichkeit. Er arbeitet teilweise geheim, z. B. mit Informantinnen und Informanten. In der Schweiz übernimmt diese Aufgabe der Nachrichtendienst des Bundes (NDB).",
+     ["Geheimdienste sind schwer zu kontrollieren.", "Es gab in der Vergangenheit Skandale und Pannen.", "Die Polizei könnte die wichtigsten Aufgaben übernehmen."],
+     ["Er schützt die Demokratie vor Extremisten und Anschlägen.", "Gefahren können früh erkannt werden.", "Die Polizei darf oft erst handeln, wenn schon etwas passiert ist."]],
+    ["Konsequentere Abschiebungen",
+     "Menschen, deren Asylantrag abgelehnt wurde, sollen konsequent in ihr Herkunftsland zurückgeschickt werden – auch wenn sie schon gut Deutsch sprechen, arbeiten oder eine Lehre machen.",
+     [1, 1, -1, -1, -1],
+     "Wer in Deutschland Asyl beantragt, wird geprüft: Wird die Person in ihrer Heimat verfolgt? Wenn nicht, wird der Antrag abgelehnt und sie muss Deutschland verlassen. Viele bleiben aber jahrelang, weil die Rückreise schwierig ist (Duldung). In dieser Zeit haben manche Arbeit gefunden oder eine Lehre begonnen.",
+     ["Regeln und Entscheide von Behörden und Gerichten sollen auch umgesetzt werden.", "Sonst kommen mehr Menschen ohne Asylgrund.", "Fairness gegenüber Menschen, die auf legalem Weg einwandern."],
+     ["Gut integrierte Menschen werden aus ihrem Leben gerissen.", "Betriebe verlieren dringend benötigte Arbeitskräfte.", "Menschlich hart, besonders für Kinder, die hier aufgewachsen sind."]],
+    ["Wählen ab 16",
+     "Jugendliche sollen schon ab 16 Jahren bei der Landtagswahl in Sachsen-Anhalt wählen dürfen (heute erst ab 18).",
+     [-1, -1, 1, 1, 1],
+     "Bei Gemeindewahlen dürfen in Sachsen-Anhalt schon 16-Jährige wählen, bei der Landtagswahl erst 18-Jährige. In einigen anderen Bundesländern ist Wählen ab 16 auch für den Landtag erlaubt. In der Schweiz gibt es das Stimm- und Wahlrecht ab 16 bisher nur im Kanton Glarus.",
+     ["Jugendliche sind lange von politischen Entscheiden betroffen (z. B. Klima, Schule, Ausbildung).", "Wer früh mitbestimmen darf, interessiert sich eher für Politik.", "Jugendliche können ihre Anliegen selbst einbringen."],
+     ["Mit 16 fehlt manchen noch Erfahrung und Wissen.", "Volljährig ist man erst mit 18 – Rechte und Pflichten sollen zusammenpassen.", "Jugendliche könnten leichter beeinflusst werden, z. B. über Social Media."]]
   ];
   var LETTERS = ["A", "B", "C", "D", "E"];
   // Parteinamen leicht verschleiert, damit sie im Quelltext nicht sofort lesbar sind.
@@ -239,6 +336,13 @@
     $("q-count").textContent = "These " + (current + 1) + " von " + THESES.length;
     $("q-title").textContent = t[0];
     $("q-text").textContent = t[1];
+    $("q-context").textContent = t[3];
+    [["q-pro", t[4]], ["q-con", t[5]]].forEach(function (x) {
+      var ul = $(x[0]);
+      ul.innerHTML = "";
+      x[1].forEach(function (a) { var li = document.createElement("li"); li.textContent = a; ul.appendChild(li); });
+    });
+    $("q-args").open = false;
     var p = $("progress");
     p.innerHTML = "";
     THESES.forEach(function (_, i) {
