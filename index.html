@@ -113,6 +113,30 @@
   .codebox .code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: .08em; }
   .codebox p { flex-basis: 100%; margin: 0; font-size: .88rem; }
 
+  .topbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .topbar button { padding: 8px 14px; font-size: .92rem; font-weight: 600; }
+  .terms { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -2px 0 14px; font-size: .88rem; }
+  .terms span { color: var(--muted); margin-right: 2px; }
+  .chip { padding: 4px 11px; border-radius: 99px; font-size: .85rem; border-color: var(--accent); color: var(--accent); background: var(--card); }
+  .chip:hover { background: var(--soft); }
+  .gl-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; padding: 16px; }
+  .gl-panel { background: var(--card); color: var(--ink); border-radius: var(--radius); width: 100%; max-width: 680px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px -20px rgba(0,0,0,.5); }
+  .gl-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+  .gl-head .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .gl-head h2 { margin: 0; }
+  .gl-head input { font: inherit; width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .gl-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .gl-cats button { padding: 5px 12px; border-radius: 99px; font-size: .85rem; }
+  .gl-cats button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .gl-body { overflow-y: auto; padding: 4px 20px 20px; }
+  .gl-body h3 { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 4px; }
+  .gl-item { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .gl-item:last-child { border-bottom: 0; }
+  .gl-item strong { display: block; }
+  .gl-item p { margin: 2px 0 0; font-size: .95rem; }
+  .gl-item .ex { color: var(--muted); font-size: .9rem; font-style: italic; }
+  .gl-item.hit { background: var(--soft); margin: 0 -10px; padding: 10px; border-radius: 8px; }
+
   .flip { animation: flip .6s ease; }
   @keyframes flip { 0% { transform: rotateX(90deg); opacity: 0; } 100% { transform: rotateX(0); opacity: 1; } }
 
@@ -132,12 +156,14 @@
 <body>
 <div class="wrap">
 
+  <div class="topbar"><button id="btn-glossar" aria-haspopup="dialog">Glossar</button></div>
+
   <!-- Start -->
   <section id="s-start" class="card">
     <div class="eyebrow">Mini-Wahl-O-Mat · Landtagswahl Sachsen-Anhalt 2026</div>
     <h1>Masked Politics: Wer steckt hinter deiner Meinung?</h1>
     <p>Sachsen-Anhalt ist ein Bundesland im Osten Deutschlands (Hauptstadt Magdeburg). Ein Bundesland ist ungefähr wie ein Kanton. Am 6. September 2026 hat die Bevölkerung dort ihr Parlament, den Landtag, neu gewählt.</p>
-    <p>Du siehst gleich 15 politische Thesen. Zu jeder These erklärt ein kurzer Text, worum es geht, und du kannst dir Argumente dafür und dagegen anzeigen lassen. Entscheide bei jeder: <strong>Stimme zu</strong>, <strong>neutral</strong> oder <strong>stimme nicht zu</strong>. Wenn du dir unsicher bist, kannst du eine These überspringen.</p>
+    <p>Du siehst gleich 15 politische Thesen. Zu jeder These erklärt ein kurzer Text, worum es geht, und du kannst dir Argumente dafür und dagegen anzeigen lassen. Entscheide bei jeder: <strong>Stimme zu</strong>, <strong>neutral</strong> oder <strong>stimme nicht zu</strong>. Wenn du dir unsicher bist, kannst du eine These überspringen. Unbekannte Wörter findest du oben rechts im <strong>Glossar</strong>.</p>
     <p>Am Schluss vergleichen wir deine Antworten mit fünf Parteien. Die Parteien heissen zuerst nur <strong>Partei A bis E</strong>. Welche Partei sich dahinter versteckt, erfährst du erst ganz am Ende.</p>
     <p class="muted">Es gibt keine richtigen oder falschen Antworten. Deine Antworten bleiben nur auf diesem Gerät gespeichert, niemand sonst sieht sie.</p>
 
@@ -167,6 +193,7 @@
     <h2 id="q-title"></h2>
     <p class="thesis" id="q-text"></p>
     <div class="context"><strong>Worum geht es?</strong><span id="q-context"></span></div>
+    <div class="terms" id="q-terms"></div>
     <details class="args" id="q-args">
       <summary>Argumente anzeigen</summary>
       <div class="args-grid">
@@ -237,12 +264,23 @@
 
 </div>
 
+<div class="gl-overlay hidden" id="gl" role="dialog" aria-modal="true" aria-labelledby="gl-title">
+  <div class="gl-panel">
+    <div class="gl-head">
+      <div class="row"><h2 id="gl-title">Glossar</h2><button id="gl-close" aria-label="Glossar schliessen">Schliessen ✕</button></div>
+      <input id="gl-search" type="search" placeholder="Begriff suchen …" aria-label="Begriff suchen" autocomplete="off">
+      <div class="gl-cats" id="gl-cats"></div>
+    </div>
+    <div class="gl-body" id="gl-body"></div>
+  </div>
+</div>
+
 <script>
 (function () {
   // ---------- Konfiguration ----------
   // Optional: Code, den die Lehrperson für die Auflösung bekannt gibt (z. B. "MASKE").
   // Leer lassen ("") = Die SuS können direkt nach dem Durchführen aufdecken.
-  var REVEAL_CODE = "4711";
+  var REVEAL_CODE = "";
 
   // ---------- Daten ----------
   // Positionen: 1 = Zustimmung, 0 = neutral, -1 = Ablehnung
@@ -251,94 +289,183 @@
   var THESES = [
     ["Windkraft im Wald",
      "In Sachsen-Anhalt sollen keine neuen Windräder in Wäldern gebaut werden dürfen.",
-     [1, 1, -1, -1, -1],
+     [1,  1,  -1,  -1,  -1],
      "Windräder erzeugen Strom aus Wind, ohne dabei CO₂ auszustossen. Deutschland will in den nächsten Jahren viel mehr Windräder bauen. Weil auf freien Feldern oft Platz fehlt oder Anwohnende dagegen sind, sucht man auch Flächen im Wald – zum Beispiel dort, wo Bäume wegen Trockenheit und Borkenkäfer schon abgestorben sind.",
      ["Der Wald ist Lebensraum für viele Tiere und ein Ort zur Erholung.", "Für den Bau müssen Bäume gefällt und breite Zufahrtswege angelegt werden.", "Windräder verändern das Landschaftsbild stark."],
      ["Mehr Flächen bedeuten mehr klimafreundlichen Strom.", "Im Wald stehen Windräder oft weiter weg von Häusern – weniger Lärm für Menschen.", "Bereits kaputte Waldflächen können sinnvoll genutzt werden."]],
     ["Kostenloses Mittagessen",
      "Alle Kinder in Kitas (Krippe und Kindergarten) und in Schulen sollen jeden Tag ein kostenloses Mittagessen bekommen. Das Land bezahlt die Kosten.",
-     [-1, -1, 1, 1, 1],
+     [-1,  -1,  1,  1,  1],
      "In Deutschland essen viele Kinder in der Kita oder in der Schulmensa zu Mittag. Heute bezahlen das meistens die Eltern, oft einige Euro pro Mahlzeit. Familien mit wenig Geld bekommen teilweise Unterstützung.",
      ["Alle Kinder bekommen eine warme, gesunde Mahlzeit – egal, wie viel Geld die Eltern haben.", "Familien werden finanziell entlastet.", "Niemand wird ausgegrenzt, weil er sich das Essen nicht leisten kann."],
      ["Das kostet das Land sehr viel Geld, das an anderen Orten fehlt (z. B. für Lehrpersonen).", "Auch reiche Familien profitieren, obwohl sie selbst zahlen könnten.", "Die Eltern sollen selbst Verantwortung für das Essen ihrer Kinder tragen."]],
     ["Früherer Braunkohleausstieg",
      "Sachsen-Anhalt soll früher als 2038 damit aufhören, Braunkohle abzubauen und in Kraftwerken daraus Strom zu machen.",
-     [-1, -1, 1, 1, 0],
+     [-1,  -1,  1,  1,  0],
      "Braunkohle wird in riesigen Gruben (Tagebau) aus dem Boden gebaggert und in Kraftwerken verbrannt. Das erzeugt Strom, aber auch sehr viel CO₂, das den Klimawandel antreibt. Deutschland hat beschlossen, spätestens 2038 ganz auszusteigen. In der Region arbeiten noch viele Menschen in der Kohle oder in Firmen, die davon abhängen.",
      ["Das Klima wird schneller geschützt.", "Es werden weniger Landschaften und Dörfer für Tagebaue zerstört.", "Der Umstieg auf erneuerbare Energien (Wind, Sonne) wird beschleunigt."],
      ["Arbeitsplätze in der Region gehen früher verloren.", "Strom könnte teurer oder knapper werden.", "Die Region braucht Zeit, um neue Jobs und Firmen anzusiedeln."]],
     ["Eine Schule für alle",
      "Alle Kinder sollen nach der Grundschule (4. Klasse) gemeinsam in eine Gemeinschaftsschule gehen. Die Aufteilung in Sekundarschule und Gymnasium wird abgeschafft.",
-     [-1, -1, 1, 1, 1],
+     [-1,  -1,  1,  1,  1],
      "In Sachsen-Anhalt werden die Kinder schon nach der 4. Klasse auf verschiedene Schulen verteilt: meistens Sekundarschule oder Gymnasium. Das ist ähnlich wie bei uns die Einteilung in Niveau A, B, C oder ins Gymnasium – nur viel früher. In einer Gemeinschaftsschule lernen alle zusammen und werden je nach Fach unterschiedlich gefördert. Einige solche Schulen gibt es schon.",
      ["Mehr Chancengleichheit: Der Schulerfolg hängt weniger vom Elternhaus ab.", "Mit 10 Jahren über den Schulweg zu entscheiden, ist sehr früh.", "Schwächere und stärkere Kinder können voneinander lernen."],
      ["Starke Schülerinnen und Schüler werden vielleicht zu wenig gefordert, schwächere überfordert.", "Das Gymnasium hat sich bewährt.", "Eine so grosse Umstellung kostet viel Geld und bringt Unruhe in die Schulen."]],
     ["Gratis Bus und Bahn für Schülerinnen und Schüler",
      "Alle Schülerinnen und Schüler in Sachsen-Anhalt sollen Bus, Tram und Zug kostenlos benutzen dürfen – nicht nur für den Schulweg, sondern auch in der Freizeit.",
-     [0, -1, 1, 1, 1],
+     [0,  -1,  1,  1,  1],
      "ÖPNV heisst «öffentlicher Personennahverkehr» – bei uns sagt man einfach ÖV. Heute wird für Schülerinnen und Schüler meistens nur die Fahrt zur Schule bezahlt. Wer in der Freizeit fährt, zum Beispiel ins Training oder zu Freunden, braucht ein eigenes Ticket.",
      ["Jugendliche werden unabhängiger und mobiler, besonders auf dem Land.", "Familien sparen Geld.", "Gut für die Umwelt: weniger «Elterntaxi» mit dem Auto."],
      ["Das kostet viel Steuergeld.", "Auf dem Land fahren Busse selten – gratis nützt dort wenig.", "Das Geld wäre besser in mehr und häufigere Verbindungen investiert."]],
     ["Bodycams für die Polizei",
      "Alle Polizistinnen und Polizisten in Sachsen-Anhalt, die auf Streife sind, sollen eine kleine Kamera an der Uniform tragen (Bodycam), mit der sie Einsätze filmen können.",
-     [1, 1, -1, 0, 1],
+     [1,  1,  -1,  0,  1],
      "Eine Bodycam ist eine kleine Videokamera, die an der Uniform befestigt ist. Die Polizei schaltet sie ein, wenn eine Situation gefährlich oder unklar wird. Ein Teil der Polizei nutzt Bodycams schon – die These verlangt, dass alle Streifenpolizistinnen und -polizisten eine bekommen.",
      ["Schützt die Polizei: Wer gefilmt wird, greift seltener an.", "Bei Streit gibt es Beweise, z. B. vor Gericht.", "Auch Fehlverhalten der Polizei wird sichtbar."],
      ["Gefilmte Personen verlieren ein Stück Privatsphäre.", "Kameras und das Speichern der Videos sind teuer.", "Die Polizei entscheidet selbst, wann sie filmt – das kann einseitig sein."]],
     ["Förderung der Rüstungsindustrie",
      "Das Land Sachsen-Anhalt soll Firmen, die Waffen, Munition oder Teile für Militärfahrzeuge herstellen, mit Geld unterstützen, damit sie hier Fabriken bauen.",
-     [1, 1, -1, -1, -1],
+     [1,  1,  -1,  -1,  -1],
      "Seit dem Krieg in der Ukraine will Deutschland seine Armee (die Bundeswehr) stärken und braucht dafür mehr Waffen und Munition. Bundesländer können Firmen Fördergeld geben, damit diese neue Fabriken bei ihnen bauen und nicht in einem anderen Bundesland.",
      ["Es entstehen gut bezahlte Arbeitsplätze.", "Deutschland und Europa können sich besser verteidigen.", "Das Land bekommt mehr Steuereinnahmen."],
      ["Steuergeld fliesst in Waffen statt in Schulen oder Spitäler.", "Waffen könnten in Kriegsgebiete verkauft werden.", "Ethische Bedenken: Mit Waffen Geld zu verdienen, ist umstritten."]],
     ["Wolf ins Jagdrecht",
      "Der Wolf soll ins Jagdrecht aufgenommen werden. Jägerinnen und Jäger dürften Wölfe dann nach festen Regeln schiessen, damit es weniger Wölfe gibt.",
-     [1, 1, -1, -1, -1],
+     [1,  1,  -1,  -1,  -1],
      "Der Wolf war in Deutschland ausgerottet und ist vor rund 25 Jahren zurückgekehrt. Er ist geschützt und darf nur in Ausnahmefällen getötet werden. In Sachsen-Anhalt leben inzwischen viele Wolfsrudel. Wölfe reissen manchmal Schafe oder Ziegen – ähnlich wie bei uns im Wallis oder in Graubünden.",
      ["Schafe, Ziegen und andere Weidetiere werden besser geschützt.", "Die Zahl der Wölfe wächst stark.", "Manche Menschen auf dem Land haben Angst vor dem Wolf."],
      ["Der Wolf gehört zur Natur und hält z. B. den Bestand von Rehen und Wildschweinen gesund.", "Herdenschutz mit Zäunen und Hunden wirkt oft besser als Abschüsse.", "Der Wolf ist geschützt – Abschüsse könnten seinen Bestand gefährden."]],
     ["Geschlechtergerechte Sprache in Behörden",
      "Ämter des Landes sollen in Briefen und Formularen immer geschlechtergerechte Sprache verwenden müssen, z. B. «Bürger*innen» oder «BürgerInnen» statt nur «Bürger».",
-     [-1, -1, 1, 1, 1],
+     [-1,  -1,  1,  1,  1],
      "Früher wurde oft nur die männliche Form verwendet («die Lehrer»), auch wenn Frauen mitgemeint waren. Geschlechtergerechte Sprache soll alle Geschlechter sichtbar machen. Manche finden Sternchen und Binnen-I wichtig, andere finden sie kompliziert oder unnötig.",
      ["Alle Menschen fühlen sich angesprochen – Frauen und auch nicht-binäre Personen.", "Sprache beeinflusst, wie wir denken.", "Der Staat soll ein Vorbild sein."],
      ["Texte werden schwerer lesbar, z. B. für Menschen mit Leseschwierigkeiten.", "Eine Pflicht «von oben» stört viele Menschen.", "Es gibt einfachere Lösungen, z. B. «Lehrerinnen und Lehrer» oder «Lehrpersonen»."]],
     ["Mehr Sonntagsverkauf",
      "Geschäfte in Sachsen-Anhalt sollen an mehr Sonntagen im Jahr öffnen dürfen als heute.",
-     [1, 1, -1, -1, -1],
+     [1,  1,  -1,  -1,  -1],
      "In Deutschland sind Läden – wie in der Schweiz – am Sonntag grundsätzlich geschlossen. Ausnahmen gibt es nur an wenigen «verkaufsoffenen Sonntagen» pro Jahr. Der Sonntag gilt als Ruhetag für Familie, Erholung und Religion.",
      ["Mehr Freiheit: Man kann einkaufen, wann man Zeit hat.", "Läden in der Stadt können besser mit Online-Shops mithalten.", "Innenstädte werden belebter."],
      ["Verkäuferinnen und Verkäufer müssen am Sonntag arbeiten.", "Der Sonntag als gemeinsamer Ruhetag für Familien geht verloren.", "Kleine Läden können sich zusätzliches Personal oft nicht leisten."]],
     ["Förderung von Bio-Landwirtschaft",
      "Das Land soll Bauernhöfen zusätzliches Geld geben, wenn sie ihren Betrieb ganz auf Bio-Landwirtschaft (ökologischen Landbau) umstellen.",
-     [-1, 0, 1, 1, 1],
+     [-1,  0,  1,  1,  1],
      "Bio-Höfe verzichten auf Kunstdünger und chemische Pflanzenschutzmittel (Pestizide), und die Tiere haben mehr Platz. Das ist besser für Boden, Wasser und Insekten. Dafür ist die Ernte kleiner und die Produkte sind teurer. Die Umstellung dauert mehrere Jahre und kostet die Bauern Geld.",
      ["Umwelt, Insekten und Grundwasser werden geschützt.", "Die Tiere werden besser gehalten.", "Bauern erhalten Sicherheit während der teuren Umstellung."],
      ["Bio-Produkte sind teurer – nicht alle können sie sich leisten.", "Weniger Ernte: Es braucht mehr Fläche oder mehr Importe.", "Der Staat soll den Bauern nicht vorschreiben, wie sie arbeiten."]],
     ["Einfacher Tempo 30",
      "Städte und Gemeinden sollen selbst und ohne grosse Hürden entscheiden dürfen, auf welchen Strassen im Ort Tempo 30 gilt.",
-     [-1, -1, 1, 1, 1],
+     [-1,  -1,  1,  1,  1],
      "Innerorts gilt in Deutschland normalerweise Tempo 50. Tempo 30 ist nur an bestimmten Orten erlaubt, zum Beispiel vor Schulen, und muss gut begründet werden. Viele Gemeinden möchten selbst entscheiden, wo langsamer gefahren wird.",
      ["Weniger Unfälle und weniger schwere Verletzungen.", "Weniger Lärm und Abgase.", "Die Gemeinden kennen ihre Strassen am besten."],
      ["Autofahrerinnen und Autofahrer brauchen länger.", "Unterschiedliche Regeln von Ort zu Ort verwirren.", "Busse und Lieferwagen werden langsamer."]],
     ["Abschaffung des Verfassungsschutzes",
      "Der Verfassungsschutz in Sachsen-Anhalt soll abgeschafft werden.",
-     [-1, -1, 1, -1, -1],
+     [-1,  -1,  1,  -1,  -1],
      "Der Verfassungsschutz ist ein Geheimdienst im eigenen Land. Er beobachtet Gruppen und Personen, die die Demokratie bekämpfen wollen – zum Beispiel Rechtsextreme, Linksextreme oder Islamisten – und warnt Politik und Öffentlichkeit. Er arbeitet teilweise geheim, z. B. mit Informantinnen und Informanten. In der Schweiz übernimmt diese Aufgabe der Nachrichtendienst des Bundes (NDB).",
      ["Geheimdienste sind schwer zu kontrollieren.", "Es gab in der Vergangenheit Skandale und Pannen.", "Die Polizei könnte die wichtigsten Aufgaben übernehmen."],
      ["Er schützt die Demokratie vor Extremisten und Anschlägen.", "Gefahren können früh erkannt werden.", "Die Polizei darf oft erst handeln, wenn schon etwas passiert ist."]],
     ["Konsequentere Abschiebungen",
      "Menschen, deren Asylantrag abgelehnt wurde, sollen konsequent in ihr Herkunftsland zurückgeschickt werden – auch wenn sie schon gut Deutsch sprechen, arbeiten oder eine Lehre machen.",
-     [1, 1, -1, -1, -1],
+     [1,  1,  -1,  -1,  -1],
      "Wer in Deutschland Asyl beantragt, wird geprüft: Wird die Person in ihrer Heimat verfolgt? Wenn nicht, wird der Antrag abgelehnt und sie muss Deutschland verlassen. Viele bleiben aber jahrelang, weil die Rückreise schwierig ist (Duldung). In dieser Zeit haben manche Arbeit gefunden oder eine Lehre begonnen.",
      ["Regeln und Entscheide von Behörden und Gerichten sollen auch umgesetzt werden.", "Sonst kommen mehr Menschen ohne Asylgrund.", "Fairness gegenüber Menschen, die auf legalem Weg einwandern."],
      ["Gut integrierte Menschen werden aus ihrem Leben gerissen.", "Betriebe verlieren dringend benötigte Arbeitskräfte.", "Menschlich hart, besonders für Kinder, die hier aufgewachsen sind."]],
     ["Wählen ab 16",
      "Jugendliche sollen schon ab 16 Jahren bei der Landtagswahl in Sachsen-Anhalt wählen dürfen (heute erst ab 18).",
-     [-1, -1, 1, 1, 1],
+     [-1,  -1,  1,  1,  1],
      "Bei Gemeindewahlen dürfen in Sachsen-Anhalt schon 16-Jährige wählen, bei der Landtagswahl erst 18-Jährige. In einigen anderen Bundesländern ist Wählen ab 16 auch für den Landtag erlaubt. In der Schweiz gibt es das Stimm- und Wahlrecht ab 16 bisher nur im Kanton Glarus.",
      ["Jugendliche sind lange von politischen Entscheiden betroffen (z. B. Klima, Schule, Ausbildung).", "Wer früh mitbestimmen darf, interessiert sich eher für Politik.", "Jugendliche können ihre Anliegen selbst einbringen."],
      ["Mit 16 fehlt manchen noch Erfahrung und Wissen.", "Volljährig ist man erst mit 18 – Rechte und Pflichten sollen zusammenpassen.", "Jugendliche könnten leichter beeinflusst werden, z. B. über Social Media."]]
+  ];
+  // Glossar: [Begriff, Erklärung, Beispiel, Kategorie]
+  var GLOSSAR = [
+    ["Bundesland", "Deutschland ist in 16 Bundesländer aufgeteilt. Jedes hat ein eigenes Parlament und eine eigene Regierung und entscheidet z. B. über Schule und Polizei.", "Etwa wie ein Kanton. Sachsen-Anhalt hat rund 2,1 Mio. Einwohner, Hauptstadt ist Magdeburg.", "Politik und Wahlen"],
+    ["Landtag", "Das Parlament eines Bundeslandes. Die Abgeordneten machen Gesetze für das Land und wählen die Regierung.", "Bei uns: der Kantonsrat Luzern.", "Politik und Wahlen"],
+    ["Landtagswahl", "Alle fünf Jahre wählt die Bevölkerung in Sachsen-Anhalt den Landtag neu – zuletzt am 6. September 2026.", "Wie die Kantonsratswahlen in Luzern.", "Politik und Wahlen"],
+    ["Partei", "Eine Gruppe von Menschen mit ähnlichen politischen Ideen. Sie stellt Kandidierende auf und will bei Wahlen Stimmen gewinnen, um ihre Ideen umzusetzen.", "In der Schweiz z. B. SVP, SP, FDP, Mitte, Grüne, GLP.", "Politik und Wahlen"],
+    ["Parteiprogramm", "Das Papier, in dem eine Partei aufschreibt, was sie will und wofür sie steht.", "Wie ein «Steckbrief» einer Partei.", "Politik und Wahlen"],
+    ["These", "Eine kurze Behauptung, zu der man Ja, Nein oder «neutral» sagen kann.", "«Bus und Bahn sollen für Schüler gratis sein.»", "Politik und Wahlen"],
+    ["Position", "Die Meinung, die jemand zu einer Frage hat.", "Partei C ist für die These, Partei B dagegen.", "Politik und Wahlen"],
+    ["Wahl-O-Mat / Wahlhilfe", "Ein Online-Test: Man beantwortet Thesen und sieht, mit welchen Parteien man am meisten übereinstimmt. Er sagt nicht, wen man wählen muss.", "In der Schweiz: smartvote.", "Politik und Wahlen"],
+    ["Erststimme / Zweitstimme", "In Deutschland hat man bei der Wahl zwei Stimmen: Mit der Erststimme wählt man eine Person aus seinem Wahlkreis, mit der Zweitstimme eine Partei. Die Zweitstimme entscheidet, wie viele Sitze eine Partei bekommt.", "In der Schweiz wählt man mit einer Liste und kann Namen streichen oder hinzufügen.", "Politik und Wahlen"],
+    ["Fünf-Prozent-Hürde", "Eine Partei kommt nur ins Parlament, wenn sie mindestens 5 % der Zweitstimmen bekommt. So sollen nicht zu viele kleine Parteien im Parlament sitzen.", "In der Schweiz gibt es keine solche Hürde.", "Politik und Wahlen"],
+    ["Fraktion", "Alle Abgeordneten einer Partei im Parlament bilden zusammen eine Fraktion.", "Wie ein «Team» im Parlament.", "Politik und Wahlen"],
+    ["Koalition", "Wenn keine Partei allein die Mehrheit hat, schliessen sich mehrere Parteien zusammen und regieren gemeinsam.", "Ähnlich wie eine Gruppenarbeit: Man muss Kompromisse finden.", "Politik und Wahlen"],
+    ["Opposition", "Die Parteien im Parlament, die nicht in der Regierung sind. Sie kontrollieren und kritisieren die Regierung.", "In der Schweiz gibt es kaum Opposition, weil die grossen Parteien gemeinsam regieren.", "Politik und Wahlen"],
+    ["Ministerpräsident/in", "Der Regierungschef oder die Regierungschefin eines Bundeslandes. Er oder sie wird vom Landtag gewählt.", "In Luzern gibt es keinen Chef: Der Regierungsrat entscheidet gemeinsam.", "Politik und Wahlen"],
+    ["Bundestag", "Das Parlament von ganz Deutschland in Berlin.", "Bei uns: National- und Ständerat.", "Politik und Wahlen"],
+    ["Bundeskanzler/in", "Der Regierungschef oder die Regierungschefin von Deutschland. Wird vom Bundestag gewählt, nicht direkt vom Volk.", "Die Schweiz hat keinen Regierungschef, sondern den Bundesrat mit 7 Mitgliedern.", "Politik und Wahlen"],
+    ["Bundesrat (Achtung!)", "Das Wort bedeutet in den beiden Ländern etwas anderes: In Deutschland ist der Bundesrat die Vertretung der Bundesländer, in der Schweiz ist er die Regierung (7 Bundesrätinnen und Bundesräte).", "Gleiches Wort – ganz andere Aufgabe!", "Politik und Wahlen"],
+    ["Repräsentative Demokratie", "Das Volk wählt Abgeordnete. Diese entscheiden dann stellvertretend über die Gesetze. Das Volk stimmt selten direkt über Sachfragen ab.", "So funktioniert Deutschland.", "Politik und Wahlen"],
+    ["Direkte Demokratie", "Das Volk wählt nicht nur, sondern stimmt auch selbst über Sachfragen und Gesetze ab.", "So funktioniert die Schweiz: mehrmals im Jahr Abstimmungen.", "Politik und Wahlen"],
+    ["Volksinitiative", "Mit 100 000 Unterschriften kann das Volk verlangen, dass die Verfassung geändert wird. Dann stimmen alle darüber ab.", "Typisch Schweiz.", "Politik und Wahlen"],
+    ["Referendum", "Mit 50 000 Unterschriften kann das Volk verlangen, dass über ein neues Gesetz des Parlaments abgestimmt wird.", "Typisch Schweiz.", "Politik und Wahlen"],
+    ["Konkordanz", "Die grossen Parteien regieren gemeinsam und suchen Kompromisse, statt dass eine Partei allein bestimmt.", "Im Bundesrat sitzen Mitglieder aus mehreren Parteien.", "Politik und Wahlen"],
+    ["Image", "Das Bild, das sich viele Menschen von einer Partei oder Person machen – oft durch Medien, Werbung und Social Media.", "«Die Partei X ist doch nur für Reiche» – stimmt das wirklich?", "Politik und Wahlen"],
+    ["Vorurteil", "Eine feste Meinung über jemanden, die man sich gebildet hat, ohne genau hinzuschauen oder die Fakten zu kennen.", "Deshalb sind die Parteien im Wahl-O-Mat zuerst anonym.", "Politik und Wahlen"],
+    ["Windenergieanlage / Windrad", "Ein hoher Turm mit Rotorblättern, der aus Wind Strom erzeugt.", "Z. B. auf dem Gotthard oder im Jura.", "Begriffe aus den Thesen"],
+    ["Erneuerbare Energie", "Energie aus Quellen, die nicht aufgebraucht werden: Wind, Sonne, Wasser, Holz.", "In der Schweiz v. a. Wasserkraft.", "Begriffe aus den Thesen"],
+    ["Braunkohle", "Eine Kohle, die in grossen Gruben abgebaut und verbrannt wird, um Strom zu erzeugen. Dabei entsteht besonders viel CO₂.", "Gibt es in der Schweiz nicht.", "Begriffe aus den Thesen"],
+    ["Tagebau", "Eine riesige offene Grube, in der Kohle mit grossen Baggern abgebaut wird. Manchmal müssen dafür ganze Dörfer weichen.", "", "Begriffe aus den Thesen"],
+    ["Kohleausstieg", "Der Plan, keine Kohle mehr zur Stromerzeugung zu verbrennen. Deutschland will spätestens 2038 aussteigen.", "", "Begriffe aus den Thesen"],
+    ["CO₂ / Klimawandel", "CO₂ ist ein Gas, das beim Verbrennen von Kohle, Öl oder Benzin entsteht. Es erwärmt die Erde.", "Folge z. B.: Gletscher schmelzen.", "Begriffe aus den Thesen"],
+    ["Kita", "Kurz für Kindertagesstätte: Krippe und Kindergarten, wo Kinder tagsüber betreut werden.", "Bei uns: Kita/Krippe und Kindergarten.", "Begriffe aus den Thesen"],
+    ["Grundschule", "Die ersten vier Schuljahre in Sachsen-Anhalt.", "Bei uns: Primarschule (6 Jahre).", "Begriffe aus den Thesen"],
+    ["Sekundarschule / Gymnasium", "Nach der Grundschule gehen die Kinder in Sachsen-Anhalt entweder in die Sekundarschule (bis Klasse 9 oder 10) oder ins Gymnasium (bis zum Abitur).", "Ähnlich wie bei uns Sek und Gymi.", "Begriffe aus den Thesen"],
+    ["Gemeinschaftsschule", "Eine Schule, in der alle Kinder nach der Grundschule gemeinsam lernen – ohne Aufteilung nach Leistung in verschiedene Schulen.", "", "Begriffe aus den Thesen"],
+    ["ÖPNV", "Öffentlicher Personennahverkehr: Busse, Trams, S-Bahnen und Regionalzüge.", "Bei uns: ÖV.", "Begriffe aus den Thesen"],
+    ["Innere Sicherheit", "Alles, was die Menschen im eigenen Land schützt: Polizei, Schutz vor Kriminalität und Terror.", "", "Begriffe aus den Thesen"],
+    ["Bodycam", "Eine kleine Kamera an der Uniform von Polizistinnen und Polizisten, mit der Einsätze gefilmt werden.", "", "Begriffe aus den Thesen"],
+    ["Rüstungsindustrie", "Firmen, die Waffen, Munition, Panzer oder Teile dafür herstellen. Zulieferer liefern Einzelteile.", "Auch die Schweiz hat Rüstungsfirmen.", "Begriffe aus den Thesen"],
+    ["Ansiedlung / Fördergeld", "Wenn eine Firma an einem Ort eine neue Fabrik baut, nennt man das Ansiedlung. Mit Fördergeld (Subventionen) lockt der Staat Firmen an.", "", "Begriffe aus den Thesen"],
+    ["Jagdrecht", "Gesetze, die bestimmen, welche Tiere wann, wo und wie gejagt werden dürfen.", "Auch in der Schweiz kantonal geregelt.", "Begriffe aus den Thesen"],
+    ["Population / Bestand", "Wie viele Tiere einer Art in einem Gebiet leben.", "«Der Wolfsbestand wächst.»", "Begriffe aus den Thesen"],
+    ["Herdenschutz", "Massnahmen, die Schafe und Ziegen vor dem Wolf schützen, z. B. Elektrozäune oder Herdenschutzhunde.", "Im Wallis und in Graubünden verbreitet.", "Begriffe aus den Thesen"],
+    ["Geschlechtergerechte Sprache", "Eine Sprache, die alle Geschlechter sichtbar macht und nicht nur die männliche Form verwendet.", "«Schülerinnen und Schüler», «Lernende».", "Begriffe aus den Thesen"],
+    ["Genderstern / Binnen-I", "Schreibweisen, die alle Geschlechter in einem Wort zeigen: «Lehrer*innen», «LehrerInnen».", "", "Begriffe aus den Thesen"],
+    ["Behörde / Amt", "Eine staatliche Stelle, die Aufgaben für die Bevölkerung erledigt, z. B. Steueramt, Einwohneramt.", "Bei uns z. B. die Gemeindeverwaltung.", "Begriffe aus den Thesen"],
+    ["Verkaufsoffener Sonntag", "Ein Sonntag, an dem Geschäfte ausnahmsweise öffnen dürfen.", "Z. B. Sonntagsverkäufe vor Weihnachten.", "Begriffe aus den Thesen"],
+    ["Ökologischer Landbau / Bio", "Landwirtschaft ohne Kunstdünger und chemische Spritzmittel, mit mehr Platz für die Tiere.", "Erkennbar z. B. an der Bio-Knospe.", "Begriffe aus den Thesen"],
+    ["Pestizide", "Chemische Mittel, die Pflanzen vor Schädlingen, Pilzen oder Unkraut schützen.", "", "Begriffe aus den Thesen"],
+    ["Kommune", "Eine Stadt oder Gemeinde.", "Bei uns: Gemeinde, z. B. Neuenkirch.", "Begriffe aus den Thesen"],
+    ["Tempo-30-Zone", "Ein Gebiet, in dem Autos höchstens 30 km/h fahren dürfen.", "Gibt es auch in vielen Schweizer Quartieren.", "Begriffe aus den Thesen"],
+    ["Verfassung / Grundgesetz", "Das wichtigste Gesetz eines Staates. Es regelt die Grundrechte und wie der Staat funktioniert. In Deutschland heisst es Grundgesetz.", "Bei uns: die Bundesverfassung.", "Begriffe aus den Thesen"],
+    ["Verfassungsschutz", "Ein Geheimdienst in Deutschland, der Gruppen beobachtet, die die Demokratie abschaffen wollen (Extremisten).", "Bei uns: Nachrichtendienst des Bundes (NDB).", "Begriffe aus den Thesen"],
+    ["Geheimdienst", "Eine staatliche Stelle, die geheim Informationen sammelt, um Gefahren früh zu erkennen.", "", "Begriffe aus den Thesen"],
+    ["Extremismus", "Haltungen, die die Demokratie und die Grundrechte ablehnen und sie – teils mit Gewalt – abschaffen wollen.", "", "Begriffe aus den Thesen"],
+    ["Asyl / Asylbewerber/in", "Asyl ist Schutz für Menschen, die in ihrem Heimatland verfolgt werden (z. B. wegen Religion oder Politik). Wer Asyl beantragt, ist Asylbewerberin oder Asylbewerber.", "Auch die Schweiz gewährt Asyl.", "Begriffe aus den Thesen"],
+    ["Abschiebung", "Wenn der Staat eine Person, die das Land verlassen muss, zwangsweise in ihr Herkunftsland zurückbringt.", "In der Schweiz: Ausschaffung.", "Begriffe aus den Thesen"],
+    ["Duldung", "Eine Person muss eigentlich ausreisen, darf aber vorübergehend bleiben, weil eine Rückreise gerade nicht möglich ist.", "In der Schweiz: vorläufige Aufnahme (ähnlich).", "Begriffe aus den Thesen"],
+    ["Integration", "Sich in einer neuen Gesellschaft zurechtfinden und dazugehören: Sprache lernen, arbeiten, Freunde finden.", "", "Begriffe aus den Thesen"],
+    ["Wahlalter / aktives Wahlrecht", "Ab welchem Alter man wählen darf. Aktives Wahlrecht = wählen dürfen, passives Wahlrecht = gewählt werden können.", "In der Schweiz ab 18 (Glarus ab 16).", "Begriffe aus den Thesen"],
+    ["Freiheit", "Selbst entscheiden können, wie man lebt, was man sagt und tut – solange man anderen nicht schadet.", "«Ich will einkaufen, wann ich will.»", "Werte"],
+    ["Sicherheit", "Geschützt sein vor Gefahren, Gewalt und Kriminalität.", "«Ich will mich nachts sicher fühlen.»", "Werte"],
+    ["Gerechtigkeit", "Alle sollen fair behandelt werden und die gleichen Chancen haben.", "«Alle sollen die gleichen Chancen in der Schule haben.»", "Werte"],
+    ["Solidarität", "Zusammenhalten und denen helfen, denen es schlechter geht.", "«Wer mehr hat, soll mehr beitragen.»", "Werte"],
+    ["Eigenverantwortung", "Selbst für sein Leben und seine Entscheidungen verantwortlich sein, statt sich auf den Staat zu verlassen.", "«Eltern sollen selbst für ihre Kinder sorgen.»", "Werte"],
+    ["Umweltschutz / Nachhaltigkeit", "Die Natur und das Klima schützen, damit auch künftige Generationen gut leben können.", "«Wir dürfen die Erde nicht kaputt machen.»", "Werte"],
+    ["Tradition", "Bewährte Bräuche, Regeln und Lebensweisen bewahren.", "«Der Sonntag war schon immer ein Ruhetag.»", "Werte"],
+    ["Gleichberechtigung", "Alle Menschen haben die gleichen Rechte, unabhängig von Geschlecht, Herkunft oder Religion.", "«Frauen und Männer sollen gleich viel verdienen.»", "Werte"],
+    ["Wohlstand", "Genug Geld, Arbeit und Möglichkeiten für ein gutes Leben.", "«Wir brauchen sichere Arbeitsplätze.»", "Werte"]
+  ];
+  // Passende Glossar-Begriffe pro These (Reihenfolge wie THESES)
+  var THESIS_TERMS = [
+    ["Windenergieanlage / Windrad", "Erneuerbare Energie", "CO₂ / Klimawandel"],
+    ["Kita"],
+    ["Braunkohle", "Tagebau", "Kohleausstieg", "CO₂ / Klimawandel"],
+    ["Grundschule", "Sekundarschule / Gymnasium", "Gemeinschaftsschule"],
+    ["ÖPNV"],
+    ["Bodycam", "Innere Sicherheit"],
+    ["Rüstungsindustrie", "Ansiedlung / Fördergeld", "Bundesland"],
+    ["Jagdrecht", "Population / Bestand", "Herdenschutz"],
+    ["Geschlechtergerechte Sprache", "Genderstern / Binnen-I", "Behörde / Amt"],
+    ["Verkaufsoffener Sonntag"],
+    ["Ökologischer Landbau / Bio", "Pestizide"],
+    ["Tempo-30-Zone", "Kommune"],
+    ["Verfassungsschutz", "Geheimdienst", "Extremismus", "Verfassung / Grundgesetz"],
+    ["Asyl / Asylbewerber/in", "Abschiebung", "Duldung", "Integration"],
+    ["Wahlalter / aktives Wahlrecht", "Landtag", "Landtagswahl"]
   ];
   var LETTERS = ["A", "B", "C", "D", "E"];
   // Parteinamen leicht verschleiert, damit sie im Quelltext nicht sofort lesbar sind.
@@ -424,6 +551,51 @@
     window.scrollTo(0, 0);
   }
 
+  // ---------- Glossar ----------
+  var glCat = "Alle", glFocus = null, glOpener = null;
+  var GL_CATS = ["Alle"];
+  GLOSSAR.forEach(function (g) { if (GL_CATS.indexOf(g[3]) === -1) GL_CATS.push(g[3]); });
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function renderGlossar() {
+    var q = $("gl-search").value.trim().toLowerCase();
+    $("gl-cats").innerHTML = GL_CATS.map(function (c) {
+      return '<button data-cat="' + esc(c) + '" aria-pressed="' + (c === glCat) + '">' + esc(c) + '</button>';
+    }).join("");
+    var html = "";
+    GL_CATS.slice(1).forEach(function (cat) {
+      if (glCat !== "Alle" && glCat !== cat) return;
+      var items = GLOSSAR.filter(function (g) {
+        return g[3] === cat && (!q || (g[0] + " " + g[1] + " " + g[2]).toLowerCase().indexOf(q) !== -1);
+      });
+      if (!items.length) return;
+      html += "<h3>" + esc(cat) + "</h3>" + items.map(function (g) {
+        return '<div class="gl-item' + (g[0] === glFocus ? " hit" : "") + '" data-term="' + esc(g[0]) + '"><strong>' + esc(g[0]) + "</strong><p>" + esc(g[1]) + "</p>" +
+          (g[2] ? '<p class="ex">' + esc(g[2]) + "</p>" : "") + "</div>";
+      }).join("");
+    });
+    $("gl-body").innerHTML = html || '<p class="muted" style="margin-top:16px">Kein Begriff gefunden.</p>';
+  }
+  function openGlossar(term) {
+    glOpener = document.activeElement;
+    glFocus = term || null;
+    glCat = "Alle";
+    $("gl-search").value = "";
+    renderGlossar();
+    $("gl").classList.remove("hidden");
+    if (term) {
+      var el = $("gl-body").querySelector('[data-term="' + term.replace(/"/g, '\\"') + '"]');
+      if (el) el.scrollIntoView({ block: "center" });
+      $("gl-close").focus();
+    } else {
+      $("gl-body").scrollTop = 0;
+      $("gl-search").focus();
+    }
+  }
+  function closeGlossar() {
+    $("gl").classList.add("hidden");
+    if (glOpener && glOpener.focus) glOpener.focus();
+  }
+
   // ---------- Thesen ----------
   function renderQuestion() {
     var t = THESES[current];
@@ -437,6 +609,10 @@
       x[1].forEach(function (a) { var li = document.createElement("li"); li.textContent = a; ul.appendChild(li); });
     });
     $("q-args").open = false;
+    var terms = THESIS_TERMS[current] || [];
+    $("q-terms").innerHTML = terms.length ? "<span>Begriffe:</span>" + terms.map(function (t) {
+      return '<button class="chip" data-term="' + esc(t) + '">' + esc(t) + "</button>";
+    }).join("") : "";
     var p = $("progress");
     p.innerHTML = "";
     THESES.forEach(function (_, i) {
@@ -604,6 +780,19 @@
     resume();
   }
   $("btn-restore").addEventListener("click", restore);
+  $("btn-glossar").addEventListener("click", function () { openGlossar(); });
+  $("q-terms").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-term]");
+    if (b) openGlossar(b.dataset.term);
+  });
+  $("gl-close").addEventListener("click", closeGlossar);
+  $("gl").addEventListener("click", function (e) { if (e.target === $("gl")) closeGlossar(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("gl").classList.contains("hidden")) closeGlossar(); });
+  $("gl-search").addEventListener("input", function () { glFocus = null; renderGlossar(); });
+  $("gl-cats").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cat]");
+    if (b) { glCat = b.dataset.cat; renderGlossar(); }
+  });
   $("restore-code").addEventListener("keydown", function (e) { if (e.key === "Enter") restore(); });
   $("btn-copy").addEventListener("click", function () {
     var code = encodeState();
